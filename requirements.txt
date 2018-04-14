@@ -1,0 +1,6 @@
+keras=2.0.4
+numpy==1.12.1
+matplotlib==2.0.2
+tweepy=3.6.0
+re=2.2.1
+urllib3=1.22
