@@ -4,7 +4,7 @@ from sklearn import metrics
 def evaluate_prediction(y_true, y_pred, threshold=0.5):
 	prec = calc_precision(y_true, y_pred)
 	rec = calc_recall(y_true, y_pred)
-	roc_auc = metrics.roc_auc_score(y, y_pred)
+	roc_auc = metrics.roc_auc_score(y_true, y_pred)
 	return roc_auc, prec,  rec
 
 

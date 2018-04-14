@@ -2,6 +2,7 @@ import os
 import shutil
 
 from library.models import EventEmbLSTMConv1DNet
+from library.models import IntervalLSTMConv1DNet
 
 DO_TRAINING = True
 
