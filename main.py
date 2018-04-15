@@ -3,6 +3,9 @@ import shutil
 
 from library.models import EventEmbLSTMConv1DNet
 from library.models import IntervalLSTMConv1DNet
+from library.models import EmbConcIntLSTMConv1DNet
+from library.models import EvtInt2RnnNet
+from library.models import EvtInt1RnnNet
 
 DO_TRAINING = True
 
@@ -31,6 +34,15 @@ def main():
 
         ## Interval model
         startModel(IntervalLSTMConv1DNet(), './models/interval', data_dir_path)
+
+        ## Emb + Interval model
+        startModel(EmbConcIntLSTMConv1DNet(), './models/emb_int_simple', data_dir_path)
+
+        ## 2 RNN model
+        startModel(EvtInt2RnnNet(), './models/emp_int_2rnn', data_dir_path)
+
+        ## 1 RNN model
+        startModel(EvtInt1RnnNet(), './models/emp_int_1rnn', data_dir_path)
 
 if __name__ == '__main__':
     main()
