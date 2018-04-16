@@ -10,6 +10,7 @@ from keras.layers import Conv1D, Reshape, Flatten
 from keras.callbacks import EarlyStopping, ModelCheckpoint
 from keras.callbacks import Callback
 from keras.optimizers import Adam
+from keras.preprocessing import sequence
 from keras import backend as K
 from sklearn import metrics
 
@@ -107,7 +108,7 @@ class EventEmbLSTMConv1DNet(ModelCommon):
 		weight_file_path = self.get_weight_file(model_dir_path, self.model_name)
 		architecture_file_path = self.get_architecture_file(model_dir_path, self.model_name)
 		
-		checkpoint = ModelCheckpoint(weight_file_path, monitor='val_loss', verbose=1, save_best_only=False, mode='max')
+		checkpoint = ModelCheckpoint(weight_file_path, monitor='val_loss', verbose=1, save_best_only=False, mode='min')
 		roc = RocAucEvaluation(validation_data=(X[cv_idx], Y[cv_idx]), interval=1)
 		self.model = self.create_model(metric_list=[self.metric], inp_shape = self.inp_shape, alphabet_size = self.alphabet_size)
 		print(self.model.summary())
@@ -307,7 +308,7 @@ class EmbConcIntLSTMConv1DNet(ModelCommon):
 		weight_file_path = self.get_weight_file(model_dir_path, self.model_name)
 		architecture_file_path = self.get_architecture_file(model_dir_path, self.model_name)
 		
-		checkpoint = ModelCheckpoint(weight_file_path, monitor='val_roc_auc', verbose=1, save_best_only=False, mode='max')
+		checkpoint = ModelCheckpoint(weight_file_path, monitor='val_loss', verbose=1, save_best_only=False, mode='min')
 		roc = RocAucEvaluation(validation_data=([X[cv_idx], D[cv_idx]], Y[cv_idx]), interval=1)
 		self.model = self.create_model(metric=self.metric, 
 			ev_inp_shape = self.ev_inp_shape, 
@@ -429,7 +430,7 @@ class EvtInt2RnnNet(ModelCommon):
 		weight_file_path = self.get_weight_file(model_dir_path, self.model_name)
 		architecture_file_path = self.get_architecture_file(model_dir_path, self.model_name)
 		
-		checkpoint = ModelCheckpoint(weight_file_path, monitor='val_roc_auc', verbose=1, save_best_only=False, mode='max')
+		checkpoint = ModelCheckpoint(weight_file_path, monitor='val_loss', verbose=1, save_best_only=False, mode='min')
 		roc = RocAucEvaluation(validation_data=([X[cv_idx], D[cv_idx]], Y[cv_idx]), interval=1)
 		self.model = self.create_model(metric=self.metric, 
 			ev_inp_shape = self.ev_inp_shape, 
@@ -544,7 +545,7 @@ class EvtInt1RnnNet(ModelCommon):
 		weight_file_path = self.get_weight_file(model_dir_path, self.model_name)
 		architecture_file_path = self.get_architecture_file(model_dir_path, self.model_name)
 		
-		checkpoint = ModelCheckpoint(weight_file_path, monitor='val_roc_auc', verbose=1, save_best_only=False, mode='max')
+		checkpoint = ModelCheckpoint(weight_file_path, monitor='val_loss', verbose=1, save_best_only=False, mode='min')
 		roc = RocAucEvaluation(validation_data=([X[cv_idx], D[cv_idx]], Y[cv_idx]), interval=1)
 		self.model = self.create_model(metric=self.metric, 
 			ev_inp_shape = self.ev_inp_shape, 
@@ -589,3 +590,262 @@ class EvtInt1RnnNet(ModelCommon):
 		np.save(config_file_path, self.config)
 
 		return history
+
+class LinearEmptyEvtsBaseline(ModelCommon):
+	model_name = 'ln-empty-evt-baseline'
+	VERBOSE = 1
+
+	def __init__(self):
+		self.model_name = EvtInt1RnnNet.model_name
+		self.model = None
+		self.metric = None
+		self.threshold = 5.0
+		self.config = None
+		self.sequence_length = 300
+		self.ev_inp_shape=(self.sequence_length,) 
+		self.ts_inp_shape=(self.sequence_length,1) 
+		self.alphabet_size = 252
+
+	@staticmethod
+	def create_model(metric_list, inp_shape, 
+		alphabet_size,
+		emb_size=64, 
+		spatial_dropout = 0.2, 
+		lstm_units = 100, 
+		conv_filters = 64,
+		conv_kernel = 3):
+		inp = Input(shape=inp_shape)
+		x = Embedding(alphabet_size, emb_size)(inp)
+		x = SpatialDropout1D(spatial_dropout)(x)
+		x = Bidirectional(LSTM(lstm_units, return_sequences=True, dropout=0.1,recurrent_dropout=0.1))(x)
+		x = Conv1D(conv_filters, kernel_size = conv_kernel, padding = "valid", kernel_initializer = "glorot_uniform")(x)
+		avg_pool = GlobalAveragePooling1D()(x)
+		max_pool = GlobalMaxPooling1D()(x)
+		conc = concatenate([avg_pool, max_pool])
+		dense_1 = Dense(32, activation="relu")(conc)
+		outp = Dense(1, activation="sigmoid")(dense_1)
+		
+		model = Model(inputs=inp, outputs=outp)
+		model.compile(loss='binary_crossentropy',
+				  optimizer=Adam(lr=1e-3),
+				  metrics=metric_list)
+		#print(model.summary())
+		return model
+
+	def load_model(self, model_dir_path):
+		self.model = self.create_model(metric_list=[self.metric], inp_shape = self.inp_shape, alphabet_size = self.alphabet_size)
+		weight_file_path = self.get_weight_file(model_dir_path, self.model_name)
+		self.model.load_weights(weight_file_path)
+
+	def fit(self, dataset_dir, model_dir_path, batch_size=128, epochs=5, metric='accuracy'):
+
+		self.metric = metric
+
+		X = np.load(dataset_dir + '/' + ModelCommon.X_file)
+		D = np.load(dataset_dir + '/' + ModelCommon.D_file)
+		I = D[:, 1:] - D[:, :-1]
+		I = np.concatenate((D[:, :1], I), axis=1)
+		Y = np.load(dataset_dir + '/' + ModelCommon.Y_file) / 2
+		tr_idx = np.load(dataset_dir + '/' + ModelCommon.tr_idx_file)
+		cv_idx = np.load(dataset_dir + '/' + ModelCommon.cv_idx_file)
+
+		print('\nBuilding a dilated sequence is started for model' + self.model_name)
+		X_tmp = []
+		for i in np.arange(X.shape[0]):
+			if(i % 50000 == 0):
+				print("{} records processed".format(i))
+			dil_seq = self.buildDilatedSequence(X[i][-L[i]:], I[i][-L[i]:])
+			X_tmp.append(dil_seq)
+		X = sequence.pad_sequences(np.array(X_tmp), maxlen=self.sequence_length)
+		print('\nBuilding a dilated sequence is finished for model' + self.model_name)
+
+		weight_file_path = self.get_weight_file(model_dir_path, self.model_name)
+		architecture_file_path = self.get_architecture_file(model_dir_path, self.model_name)
+		
+		checkpoint = ModelCheckpoint(weight_file_path, monitor='val_loss', verbose=1, save_best_only=False, mode='min')
+		roc = RocAucEvaluation(validation_data=(X[cv_idx], Y[cv_idx]), interval=1)
+		self.model = self.create_model(metric_list=[self.metric], inp_shape = self.inp_shape, alphabet_size = self.alphabet_size)
+		print(self.model.summary())
+		open(architecture_file_path, 'w').write(self.model.to_json())
+
+		print('\nModel ' + self.model_name + ' training is started')
+		# training
+		history = self.model.fit(x=X[tr_idx], y=Y[tr_idx],
+								 batch_size=batch_size, epochs=epochs,
+								 verbose=self.VERBOSE, validation_data=(X[cv_idx], Y[cv_idx]),
+								 callbacks=[checkpoint, roc]).history
+
+		print('Model ' + self.model_name + ' training is finished\n\n')
+		
+
+		print('Model ' + self.model_name + ' evaluation is started')
+		self.load_model(model_dir_path)
+		y_pred = self.model.predict(X[cv_idx], batch_size=1024, verbose=1)
+		y_df = pd.DataFrame({'idx': cv_idx, 'y_true': Y[cv_idx], 'y_pred': y_pred.reshape(-1)})
+		y_df.to_csv(self.get_out_file(model_dir_path, self.model_name))
+
+		print('Model ' + self.model_name + ' evaluation is finished')
+
+		print('estimated threshold is ' + str(self.threshold))
+
+		roc_auc, precision, recall = library.train_utils.evaluate_prediction(Y[cv_idx], y_pred.reshape(-1), self.threshold)
+		print("\nRESULT:\nROC AUC = {}, Precision = {}, Recall = {}\n".format(roc_auc, precision, recall))
+
+		self.config = dict()
+		self.config['metric'] = self.metric
+		self.config['threshold'] = self.threshold
+		self.config['inp_shape'] = self.inp_shape
+		self.config['alphabet_size'] = self.alphabet_size
+		self.config['roc_auc'] = roc_auc
+		self.config['precision'] = precision
+		self.config['recall'] = recall
+		config_file_path = self.get_config_file(model_dir_path, self.model_name)
+		np.save(config_file_path, self.config)
+
+		return history
+
+	def zerosNumberLinearPerXHours(self, min_amt, period):
+		return int(min_amt / (period * 60))
+
+	def buildDilatedSequence(self, seq, intervals):
+		res = []
+		for i in np.arange(seq.shape[0]):
+			empty_no = self.zerosNumberLinearPerXHours(intervals[i], 12)
+			for j in np.arange(empty_no):
+				res.append(0)
+			res.append(seq[i])
+		return res
+
+class NonLinearEmptyEvtsBaseline(ModelCommon):
+	model_name = 'nonln-empty-evt-baseline'
+	VERBOSE = 1
+
+	def __init__(self):
+		self.model_name = EvtInt1RnnNet.model_name
+		self.model = None
+		self.metric = None
+		self.threshold = 5.0
+		self.config = None
+		self.sequence_length = 300
+		self.ev_inp_shape=(self.sequence_length,) 
+		self.ts_inp_shape=(self.sequence_length,1) 
+		self.alphabet_size = 252
+
+	@staticmethod
+	def create_model(metric_list, inp_shape, 
+		alphabet_size,
+		emb_size=64, 
+		spatial_dropout = 0.2, 
+		lstm_units = 100, 
+		conv_filters = 64,
+		conv_kernel = 3):
+		inp = Input(shape=inp_shape)
+		x = Embedding(alphabet_size, emb_size)(inp)
+		x = SpatialDropout1D(spatial_dropout)(x)
+		x = Bidirectional(LSTM(lstm_units, return_sequences=True, dropout=0.1,recurrent_dropout=0.1))(x)
+		x = Conv1D(conv_filters, kernel_size = conv_kernel, padding = "valid", kernel_initializer = "glorot_uniform")(x)
+		avg_pool = GlobalAveragePooling1D()(x)
+		max_pool = GlobalMaxPooling1D()(x)
+		conc = concatenate([avg_pool, max_pool])
+		dense_1 = Dense(32, activation="relu")(conc)
+		outp = Dense(1, activation="sigmoid")(dense_1)
+		
+		model = Model(inputs=inp, outputs=outp)
+		model.compile(loss='binary_crossentropy',
+				  optimizer=Adam(lr=1e-3),
+				  metrics=metric_list)
+		#print(model.summary())
+		return model
+
+	def load_model(self, model_dir_path):
+		self.model = self.create_model(metric_list=[self.metric], inp_shape = self.inp_shape, alphabet_size = self.alphabet_size)
+		weight_file_path = self.get_weight_file(model_dir_path, self.model_name)
+		self.model.load_weights(weight_file_path)
+
+	def fit(self, dataset_dir, model_dir_path, batch_size=128, epochs=5, metric='accuracy'):
+
+		self.metric = metric
+
+		X = np.load(dataset_dir + '/' + ModelCommon.X_file)
+		D = np.load(dataset_dir + '/' + ModelCommon.D_file)
+		I = D[:, 1:] - D[:, :-1]
+		I = np.concatenate((D[:, :1], I), axis=1)
+		Y = np.load(dataset_dir + '/' + ModelCommon.Y_file) / 2
+		tr_idx = np.load(dataset_dir + '/' + ModelCommon.tr_idx_file)
+		cv_idx = np.load(dataset_dir + '/' + ModelCommon.cv_idx_file)
+
+		print('\nBuilding a dilated sequence is started for model' + self.model_name)
+		X_tmp = []
+		for i in np.arange(X.shape[0]):
+			if(i % 50000 == 0):
+				print("{} records processed".format(i))
+			dil_seq = self.buildDilatedSequence(X[i][-L[i]:], I[i][-L[i]:])
+			X_tmp.append(dil_seq)
+		X = sequence.pad_sequences(np.array(X_tmp), maxlen=self.sequence_length)
+		print('\nBuilding a dilated sequence is finished for model' + self.model_name)
+
+		weight_file_path = self.get_weight_file(model_dir_path, self.model_name)
+		architecture_file_path = self.get_architecture_file(model_dir_path, self.model_name)
+		
+		checkpoint = ModelCheckpoint(weight_file_path, monitor='val_loss', verbose=1, save_best_only=False, mode='min')
+		roc = RocAucEvaluation(validation_data=(X[cv_idx], Y[cv_idx]), interval=1)
+		self.model = self.create_model(metric_list=[self.metric], inp_shape = self.inp_shape, alphabet_size = self.alphabet_size)
+		print(self.model.summary())
+		open(architecture_file_path, 'w').write(self.model.to_json())
+
+		print('\nModel ' + self.model_name + ' training is started')
+		# training
+		history = self.model.fit(x=X[tr_idx], y=Y[tr_idx],
+								 batch_size=batch_size, epochs=epochs,
+								 verbose=self.VERBOSE, validation_data=(X[cv_idx], Y[cv_idx]),
+								 callbacks=[checkpoint, roc]).history
+
+		print('Model ' + self.model_name + ' training is finished\n\n')
+		
+
+		print('Model ' + self.model_name + ' evaluation is started')
+		self.load_model(model_dir_path)
+		y_pred = self.model.predict(X[cv_idx], batch_size=1024, verbose=1)
+		y_df = pd.DataFrame({'idx': cv_idx, 'y_true': Y[cv_idx], 'y_pred': y_pred.reshape(-1)})
+		y_df.to_csv(self.get_out_file(model_dir_path, self.model_name))
+
+		print('Model ' + self.model_name + ' evaluation is finished')
+
+		print('estimated threshold is ' + str(self.threshold))
+
+		roc_auc, precision, recall = library.train_utils.evaluate_prediction(Y[cv_idx], y_pred.reshape(-1), self.threshold)
+		print("\nRESULT:\nROC AUC = {}, Precision = {}, Recall = {}\n".format(roc_auc, precision, recall))
+
+		self.config = dict()
+		self.config['metric'] = self.metric
+		self.config['threshold'] = self.threshold
+		self.config['inp_shape'] = self.inp_shape
+		self.config['alphabet_size'] = self.alphabet_size
+		self.config['roc_auc'] = roc_auc
+		self.config['precision'] = precision
+		self.config['recall'] = recall
+		config_file_path = self.get_config_file(model_dir_path, self.model_name)
+		np.save(config_file_path, self.config)
+
+		return history
+
+	def zerosNumberNonLinear(self.min_amt):
+	    if(min_amt < 60):
+	        return 0
+	    elif(min_amt < (60 * 6)):
+	        return 1
+	    elif(min_amt < (60 * 24)):
+	        return 2
+	    elif(min_amt < (60 * 24 *3)):
+	        return 3
+	    else:
+	        return 4
+
+	def buildDilatedSequence(self, seq, intervals):
+		res = []
+		for i in np.arange(seq.shape[0]):
+			empty_no = self.zerosNumberNonLinear(intervals[i])
+			for j in np.arange(empty_no):
+				res.append(0)
+			res.append(seq[i])
+		return res

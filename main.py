@@ -44,5 +44,11 @@ def main():
         ## 1 RNN model
         startModel(EvtInt1RnnNet(), './models/emp_int_1rnn', data_dir_path)
 
+        ## Dilated sequences with linear spaces
+        startModel(LinearEmptyEvtsBaseline(), './models/linear_empty_evts', data_dir_path)
+
+        ## Dilated sequences with non-linear spaces
+        startModel(NonLinearEmptyEvtsBaseline(), './models/non_linear_empty_evts', data_dir_path)
+
 if __name__ == '__main__':
     main()
