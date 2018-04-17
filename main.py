@@ -6,6 +6,8 @@ from library.models import IntervalLSTMConv1DNet
 from library.models import EmbConcIntLSTMConv1DNet
 from library.models import EvtInt2RnnNet
 from library.models import EvtInt1RnnNet
+from library.models import LinearEmptyEvtsBaseline
+from library.models import NonLinearEmptyEvtsBaseline
 from library.models import IntensityEvt2RnnNet
 
 DO_TRAINING = True
