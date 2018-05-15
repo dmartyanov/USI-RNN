@@ -8,12 +8,12 @@ from keras.layers import GRU, Bidirectional, GlobalAveragePooling1D, GlobalMaxPo
 from keras.layers import LSTM, Bidirectional, GlobalMaxPool1D, Dropout, TimeDistributed
 from keras.layers import Conv1D, Reshape, Flatten
 from keras.callbacks import EarlyStopping, ModelCheckpoint
-from keras.callbacks import Callback
+#from keras.callbacks import Callback
 from keras.optimizers import Adam
 from keras.preprocessing import sequence
 from keras import backend as K
 import tensorflow as tf
-from sklearn import metrics
+#from sklearn import metrics
 
 class ModelCommon(object):
 	X_file = 'X.npy'
@@ -54,15 +54,15 @@ class EventEmbLSTMConv1DNet(ModelCommon):
 	model_name = 'event-emb-lstm-conv1d'
 	VERBOSE = 1
 
-	def __init__(self):
+	def __init__(self, sequence_length = 200, alphabet_size = 252):
 		self.model_name = EventEmbLSTMConv1DNet.model_name
 		self.model = None
 		self.metric = None
 		self.threshold = 5.0
 		self.config = None
-		self.sequence_length = 200
+		self.sequence_length = sequence_length
 		self.inp_shape=(self.sequence_length,) 
-		self.alphabet_size = 252
+		self.alphabet_size = alphabet_size
 
 	@staticmethod
 	def create_model(metric, inp_shape, 
@@ -153,13 +153,13 @@ class IntervalLSTMConv1DNet(ModelCommon):
 	model_name = 'interval-lstm-conv1d'
 	VERBOSE = 1
 
-	def __init__(self):
+	def __init__(self, sequence_length = 200):
 		self.model_name = IntervalLSTMConv1DNet.model_name
 		self.model = None
 		self.metric = None
 		self.threshold = 5.0
 		self.config = None
-		self.sequence_length = 200
+		self.sequence_length = sequence_length
 		self.inp_shape=(self.sequence_length,1) 
 
 	@staticmethod
@@ -247,16 +247,16 @@ class EmbConcIntLSTMConv1DNet(ModelCommon):
 	model_name = 'emb-conc-int-lstm-conv1d'
 	VERBOSE = 1
 
-	def __init__(self):
+	def __init__(self, sequence_length=200, alphabet_size = 252):
 		self.model_name = EmbConcIntLSTMConv1DNet.model_name
 		self.model = None
 		self.metric = None
 		self.threshold = 5.0
 		self.config = None
-		self.sequence_length = 200
+		self.sequence_length = sequence_length
 		self.ev_inp_shape=(self.sequence_length,) 
 		self.ts_inp_shape=(self.sequence_length,1) 
-		self.alphabet_size = 252
+		self.alphabet_size = alphabet_size
 
 	@staticmethod
 	def create_model(metric, 
@@ -357,16 +357,16 @@ class EvtInt2RnnNet(ModelCommon):
 	model_name = 'evt-int-2rnn-tdl'
 	VERBOSE = 1
 
-	def __init__(self):
+	def __init__(self, sequence_length = 200, alphabet_size = 252):
 		self.model_name = EvtInt2RnnNet.model_name
 		self.model = None
 		self.metric = None
 		self.threshold = 5.0
 		self.config = None
-		self.sequence_length = 200
+		self.sequence_length = sequence_length
 		self.ev_inp_shape=(self.sequence_length,) 
 		self.ts_inp_shape=(self.sequence_length,1) 
-		self.alphabet_size = 252
+		self.alphabet_size = alphabet_size
 
 	@staticmethod
 	def create_model(metric, 
@@ -473,16 +473,16 @@ class EvtInt1RnnNet(ModelCommon):
 	model_name = 'evt-int-1rnn'
 	VERBOSE = 1
 
-	def __init__(self):
+	def __init__(self, sequence_length = 200, alphabet_size = 252):
 		self.model_name = EvtInt1RnnNet.model_name
 		self.model = None
 		self.metric = None
 		self.threshold = 5.0
 		self.config = None
-		self.sequence_length = 200
+		self.sequence_length = sequence_length
 		self.ev_inp_shape=(self.sequence_length,) 
 		self.ts_inp_shape=(self.sequence_length,1) 
-		self.alphabet_size = 252
+		self.alphabet_size = alphabet_size
 
 	@staticmethod
 	def create_model(metric, 
@@ -590,15 +590,15 @@ class LinearEmptyEvtsBaseline(ModelCommon):
 	model_name = 'ln-empty-evt-baseline'
 	VERBOSE = 1
 
-	def __init__(self):
+	def __init__(self, sequence_length = 300, alphabet_size = 252):
 		self.model_name = LinearEmptyEvtsBaseline.model_name
 		self.model = None
 		self.metric = None
 		self.threshold = 5.0
 		self.config = None
-		self.sequence_length = 300
+		self.sequence_length = sequence_length
 		self.inp_shape=(self.sequence_length,) 
-		self.alphabet_size = 252
+		self.alphabet_size = alphabet_size
 
 	@staticmethod
 	def create_model(metric, inp_shape, 
@@ -719,15 +719,15 @@ class NonLinearEmptyEvtsBaseline(ModelCommon):
 	model_name = 'nonln-empty-evt-baseline'
 	VERBOSE = 1
 
-	def __init__(self):
+	def __init__(self, sequence_length = 200, alphabet_size = 252):
 		self.model_name = NonLinearEmptyEvtsBaseline.model_name
 		self.model = None
 		self.metric = None
 		self.threshold = 5.0
 		self.config = None
-		self.sequence_length = 300
+		self.sequence_length = sequence_length
 		self.inp_shape=(self.sequence_length,) 
-		self.alphabet_size = 252
+		self.alphabet_size = alphabet_size
 
 	@staticmethod
 	def create_model(metric, inp_shape, 
@@ -857,17 +857,17 @@ class IntensityEvt2RnnNet(ModelCommon):
 	model_name = 'evt-intensity-2rnn'
 	VERBOSE = 1
 
-	def __init__(self):
+	def __init__(self, sequence_length = 200, intensity_length = 200, alphabet_size = 252):
 		self.model_name = IntensityEvt2RnnNet.model_name
 		self.model = None
 		self.metric = None
 		self.threshold = 5.0
 		self.config = None
-		self.sequence_length = 200
-		self.intensity_sequence = 200
+		self.sequence_length = sequence_length
+		self.intensity_sequence = intensity_length
 		self.ev_inp_shape=(self.sequence_length,) 
 		self.int_inp_shape=(self.intensity_sequence,1) 
-		self.alphabet_size = 252
+		self.alphabet_size = alphabet_size
 
 	@staticmethod
 	def create_model(metric, 

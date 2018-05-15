@@ -11,6 +11,8 @@ from library.models import NonLinearEmptyEvtsBaseline
 from library.models import IntensityEvt2RnnNet
 
 DO_TRAINING = True
+P = 200
+A = 252
 
 def recreateDirectory(dir):
     if not os.path.exists(dir):
@@ -33,28 +35,28 @@ def main():
     if DO_TRAINING:
 
         ## Baseline model
-        startModel(EventEmbLSTMConv1DNet(), './models/baseline', data_dir_path)
+        startModel(EventEmbLSTMConv1DNet(sequence_length = P, alphabet_size = A), './models/baseline', data_dir_path)
 
         ## Interval model
-        startModel(IntervalLSTMConv1DNet(), './models/interval', data_dir_path)
+        startModel(IntervalLSTMConv1DNet(sequence_length = P), './models/interval', data_dir_path)
 
         ## Emb + Interval model
-        startModel(EmbConcIntLSTMConv1DNet(), './models/emb_int_simple', data_dir_path)
+        startModel(EmbConcIntLSTMConv1DNet(sequence_length = P, alphabet_size = A), './models/emb_int_simple', data_dir_path)
 
         ## 2 RNN model
-        startModel(EvtInt2RnnNet(), './models/emp_int_2rnn', data_dir_path)
+        startModel(EvtInt2RnnNet(sequence_length = P, alphabet_size = A), './models/emp_int_2rnn', data_dir_path)
 
         ## 1 RNN model
-        startModel(EvtInt1RnnNet(), './models/emp_int_1rnn', data_dir_path)
+        startModel(EvtInt1RnnNet(sequence_length = P, alphabet_size = A), './models/emp_int_1rnn', data_dir_path)
 
         ## Dilated sequences with linear spaces
-        startModel(LinearEmptyEvtsBaseline(), './models/linear_empty_evts', data_dir_path)
+        startModel(LinearEmptyEvtsBaseline(sequence_length = int(P * 1.5), alphabet_size = A), './models/linear_empty_evts', data_dir_path)
 
         ## Dilated sequences with non-linear spaces
-        startModel(NonLinearEmptyEvtsBaseline(), './models/non_linear_empty_evts', data_dir_path)
+        startModel(NonLinearEmptyEvtsBaseline(sequence_length = int(P * 1.5), alphabet_size = A), './models/non_linear_empty_evts', data_dir_path)
 
         ## Intensity model
-        startModel(IntensityEvt2RnnNet(), './models/intensity_event', data_dir_path)
+        startModel(IntensityEvt2RnnNet(sequence_length = P, alphabet_size = A), './models/intensity_event', data_dir_path)
 
 if __name__ == '__main__':
     main()
