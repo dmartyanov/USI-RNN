@@ -47,5 +47,8 @@ Run:
 python main.py
 ```
 
+## References
+[Slides](https://www.slideshare.net/DmitryMartyanov/modeling-sequences-with-unevenly-spaced-intervals-via-rnn-97408883)
+
 
 
